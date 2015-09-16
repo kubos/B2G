@@ -20,7 +20,7 @@ and talk to us on IRC:
 
 ## Prerequisites
 
-### Linux
+### Linux - Strongly recomend using ubuntu/linux for builds.
 
 * A 64 bit linux distro
   * See http://source.android.com/source/initializing.html on configuring USB access.
@@ -88,136 +88,43 @@ case-sensitive file-system.  Doing so doesn't require any re-partitioning; you
 can simply create a disk image and build within it using the following
 commands.
 
-    hdiutil create -volname 'firefoxos' -type SPARSE -fs 'Case-sensitive Journaled HFS+' -size 40g ~/firefoxos.sparseimage
-    open ~/firefoxos.sparseimage
-    cd /Volumes/firefoxos/
+    $ hdiutil create -volname 'firefoxos' -type SPARSE -fs 'Case-sensitive Journaled HFS+' -size 40g ~/firefoxos.sparseimage
+    $ open ~/firefoxos.sparseimage
+    $ cd /Volumes/firefoxos/
 
 See https://bugzilla.mozilla.org/show_bug.cgi?id=867259 for details.
 
-#### Note: Linker OOM with noopt builds
+# Fetching Source/Building
 
-If you build with B2G_NOOPT=1 on MacOS, your linker may run out of memory and
-crash.
+### Download Repo:
+    $ mkdir ~/bin
+    $ PATH=~/bin:$PATH
+    $ curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+    $ chmod a+x ~/bin/repo
 
-The solution, if you really want a noopt build, is to use a 64-bit linker.
-Follow these steps:
 
-1. Clone this repository somewhere
+### Initialize Repo:
 
-    $ git://github.com/jld/b2g-toolchain-prebuilt.git
+    $ repo init -u https://github.com/openkosmosorg/b2g-manifest/ -b BBB-port -m beaglebone-black.xml
+    $ repo sync -cfj 16
+All the source code is almost 20 Gb so this will take quite a while to download. Repo will probably fail at least once or multiple times, if this happens just restart it.
+The options -cfj 16 gave me the best results but it may be different for you.
 
-2. In .userconfig, add the following line.
+### Build the Kernel:
+    $ cd kernel
+    $ make ARCH=arm CROSS_COMPILE=arm-eabi- am335x_evm_android_defconfig
+    $ make ARCH=arm CROSS_COMPILE=arm-eabi- -j4 uImage
+if you get a an error similar to: 
+>make: arm-eabi-gcc: Command not found
 
-        export TARGET_TOOLS_PREFIX=/path/to/b2g-toolchain-prebuilt/toolchain-4.4.3/x86_64-apple-darwin/bin/arm-linux-androideabi-
+add 'prebuilts/gcc/linux-x86/arm/arm-eabi-4.7/bin/' to your PATH
 
-  (Of course, replace /path/to/b2g-toolchain-prebuilt/ with the actual path.)
+### Build U-boot: 
+    $ cd u-boot
+    $ make CROSS_COMPILE=arm-eabi- distclean
+    $ make CROSS_COMPILE=arm-eabi- am335x_evm_config
+    $ make CROSS_COMPILE=arm-eabi- 
 
-3. Rebuild.
+### Build b2g:
 
-See https://bugzilla.mozilla.org/show_bug.cgi?id=854535 for details.
-
-## Configure
-
-Run config.sh to get a list of supported devices:
-
-    ./config.sh
-
-And then run config.sh for the device you want to build for:
-
-    ./config.sh [device name]
-
-### Udev Permissions
-If you get "error: insufficient permissions for device"...
-
-Obtain ID of device manufacturer (first 4 hexidecimal digits before colon):
-
-    $ lsusb
-
-Add a line to /etc/udev/rules.d/android.rules (replacing XXXX with 4 digit ID):
-
-    SUBSYSTEM=="usb", ATTRS{idVendor}=="XXXX", MODE="0666"
-
-Restart udev before re-plugging your device for it to be detected:
-
-    $ sudo service udev restart
-
-Re-run configure:
-
-    ./config.sh [device name]
-
-### Building against a custom Gecko
-
-It can sometimes be useful to build against a different Gecko than the one specified in the manifest, e.g. a mozilla-central checkout that has some patches applied. To do so, edit .userconfig:
-
-    GECKO_PATH=/path/to/mozilla-central
-    GECKO_OBJDIR=/path/to/mozilla-central/objdir-gonk
-
-Note that if you switch your userconfig's gecko path, you need to rm -rf the objdir and rebuild.
-
-## Build
-
-Run build.sh or bld.sh to build B2G.
-
-    ./build.sh
-
-If you want to just build gecko or some other project, just specify it:
-
-    ./build.sh gecko
-
-## Flash/Install
-
-Make sure your phone is plugged in with usb debugging enabled.
-
-To flash everything on your phone:
-
-    ./flash.sh
-
-To flash system/userdata/boot partitions on fastboot phones:
-
-    ./flash.sh system
-    ./flash.sh boot
-    ./flash.sh user
-
-To update gecko:
-
-    ./flash.sh gecko
-
-To update gaia:
-
-    ./flash.sh gaia
-
-## Update Repos
-
-To update all repos:
-
-    git pull
-    ./repo sync
-
-To update a specific repo (eg, gaia):
-
-    ./repo sync gaia
-
-## Debug
-
-To restart B2G and run B2G under gdb:
-
-    ./run-gdb.sh
-
-To attach gdb to a running B2G process:
-
-    ./run-gdb.sh attach
-
-## Test
-
-To run the Marionette test suite on the emulator:
-
-    ./test.sh
-
-To run specific tests (individual files, directories, or ini files):
-
-    ./test.sh gecko/dom/sms gecko/dom/battery/test/marionette/test_battery.py
-
-Specify the full path if you're using a different Gecko repo:
-
-    ./test.sh /path/to/mozilla-central/dom/battery/test/marionette/test_battery.py
-
+Where I'm stuck currently. Will update when progress is made.
